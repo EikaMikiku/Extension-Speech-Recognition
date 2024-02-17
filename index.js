@@ -272,6 +272,7 @@ function loadSttProvider(provider) {
         $('#speech_recognition_message_mode_div').hide();
         $('#speech_recognition_message_mapping_div').hide();
         $('#speech_recognition_language_div').hide();
+        $('#speech_recognition_resume_div').hide();
         return;
     }
 
@@ -287,9 +288,12 @@ function loadSttProvider(provider) {
     // Use microphone button as push to talk
     if (sttProviderName == 'Browser') {
         $('#speech_recognition_language_div').hide();
+        $('#speech_recognition_resume_div').show();
         sttProvider.processTranscriptFunction = processTranscript;
         sttProvider.loadSettings(extension_settings.speech_recognition[sttProviderName]);
         $('#microphone_button').show();
+    } else {
+        $('#speech_recognition_resume_div').hide();
     }
 
     if (sttProviderName == 'Vosk' || sttProviderName == 'Whisper (OpenAI)' || sttProviderName == 'Whisper (Extras)' || sttProviderName == 'Whisper (Local)') {
@@ -336,12 +340,15 @@ const defaultSettings = {
     messageMappingText: '',
     messageMapping: [],
     messageMappingEnabled: false,
+    resume: 'manual',
+    resumeDelay: 0
 };
 
 function loadSettings() {
     if (Object.keys(extension_settings.speech_recognition).length === 0) {
         Object.assign(extension_settings.speech_recognition, defaultSettings);
     }
+
     $('#speech_recognition_enabled').prop('checked', extension_settings.speech_recognition.enabled);
     $('#speech_recognition_message_mode').val(extension_settings.speech_recognition.messageMode);
 
@@ -350,6 +357,9 @@ function loadSettings() {
     }
 
     $('#speech_recognition_message_mapping_enabled').prop('checked', extension_settings.speech_recognition.messageMappingEnabled);
+
+    $('#speech_recognition_resume').val(extension_settings.speech_recognition.resume || defaultSettings.resume);
+    $('#speech_recognition_resume_delay').val(extension_settings.speech_recognition.resumeDelay || defaultSettings.resumeDelay);
 }
 
 async function onMessageModeChange() {
@@ -389,6 +399,16 @@ async function onMessageMappingChange() {
 
 async function onMessageMappingEnabledClick() {
     extension_settings.speech_recognition.messageMappingEnabled = $('#speech_recognition_message_mapping_enabled').is(':checked');
+    saveSettingsDebounced();
+}
+
+async function onResumeChange() {
+    extension_settings.speech_recognition.resume = $('#speech_recognition_resume').val();
+    saveSettingsDebounced();
+}
+
+async function onResumeDelayChange() {
+    extension_settings.speech_recognition.resumeDelay = $('#speech_recognition_resume_delay').val();
     saveSettingsDebounced();
 }
 
@@ -498,7 +518,20 @@ $(document).ready(function () {
                             <option value="replace">Replace</option>
                             <option value="auto_send">Auto send</option>
                         </select>
+                        <hr>
                     </div>
+
+                    <div id="speech_recognition_resume_div">
+                        <span>Auto-Resume Speech Recognition</span> </br>
+                        <select id="speech_recognition_resume">
+                            <option value="manual">Manual only</option>
+                            <option value="after_msg">After message generation</option>
+                            <option value="after_tts">After TTS</option>
+                        </select>
+                        Auto-Resume Delay: <input type="number" class="text_pole widthUnset" id="speech_recognition_resume_delay" name="speech_recognition_resume_delay">
+                        <hr>
+                    </div>
+
                     <div id="speech_recognition_message_mapping_div">
                         <span>Message Mapping</span>
                         <textarea id="speech_recognition_message_mapping" class="text_pole textarea_compact" type="text" rows="4" placeholder="Enter comma separated phrases mapping, example:\ncommand delete = /del 2,\nslash delete = /del 2,\nsystem roll = /roll 2d6,\nhey continue = /continue"></textarea>
@@ -507,6 +540,7 @@ $(document).ready(function () {
                             <input type="checkbox" id="speech_recognition_message_mapping_enabled" name="speech_recognition_message_mapping_enabled">
                             <small>Enable messages mapping</small>
                         </label>
+                        <hr>
                     </div>
                     <form id="speech_recognition_provider_settings" class="inline-drawer-content">
                     </form>
@@ -525,6 +559,8 @@ $(document).ready(function () {
         $('#speech_recognition_message_mapping').on('change', onMessageMappingChange);
         $('#speech_recognition_language').on('change', onSttLanguageChange);
         $('#speech_recognition_message_mapping_enabled').on('click', onMessageMappingEnabledClick);
+        $('#speech_recognition_resume').on('change', onResumeChange);
+        $('#speech_recognition_resume_delay').on('change', onResumeDelayChange);
 
         const $button = $('<div id="microphone_button" class="fa-solid fa-microphone speech-toggle" title="Click to speak"></div>');
         // For versions before 1.10.10
