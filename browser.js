@@ -3,6 +3,8 @@
 // First version by Cohee#1207
 // Adapted by Tony-sama
 
+import { getContext } from '../../../extensions.js';
+
 export { BrowserSttProvider };
 
 const DEBUG_PREFIX = '<Speech Recognition module (Browser)> ';
@@ -21,6 +23,9 @@ class BrowserSttProvider {
     };
 
     processTranscriptFunction = null;
+    resume = 'manual';
+    resumeDelay = 0;
+    ongoingMsgGen = false;
 
     get settingsHtml() {
         let html = ' \
@@ -87,6 +92,8 @@ class BrowserSttProvider {
     onSettingsChange() {
         // Used when provider settings are updated from UI
         this.settings.language = $('#speech_recognition_browser_provider_language').val();
+        this.resume = $('#speech_recognition_resume').val();
+        this.resumeDelay = $('#speech_recognition_resume_delay').val();
         console.debug(DEBUG_PREFIX + 'Change language to',this.settings.language);
         this.loadSettings(this.settings);
     }
@@ -168,6 +175,40 @@ class BrowserSttProvider {
             }
             listening = !listening;
         });
+
+        if(this.resume === 'after_msg') {
+            setInterval(() => {
+                //Checking for ongoing generation
+                let streaming = !!getContext().streamingProcessor;
+
+                if(this.ongoingMsgGen) { //Had to have been ongoing at some point
+                    if(!streaming && !listening) {
+                        //Were streaming before, and now not streaming
+                        //Also not already listening
+                        setTimeout(() => {
+                            //Re-checking again in case another gen kicked in
+                            if(!getContext().streamingProcessor && !listening) {
+                                recognition.start();
+                                listening = true;
+                            }
+                        }, this.resumeDelay);
+                        this.ongoingMsgGen = false;
+                    }
+                } else {
+                    if(streaming) {
+                        this.ongoingMsgGen = true;
+                    }
+                }
+            }, 250);
+        } else if(this.resume === 'after_tts') {
+            //tts_audio is a silent audio track played after the TTS
+            $('#tts_audio').on('ended', () => {
+                setTimeout(() => {
+                    recognition.start();
+                    listening = true;
+                }, this.resumeDelay);
+            });
+        }
 
         let initialText = '';
 

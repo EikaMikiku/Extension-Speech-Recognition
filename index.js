@@ -290,6 +290,8 @@ function loadSttProvider(provider) {
         $('#speech_recognition_language_div').hide();
         $('#speech_recognition_resume_div').show();
         sttProvider.processTranscriptFunction = processTranscript;
+        sttProvider.resume = extension_settings.speech_recognition.resume;
+        sttProvider.resumeDelay = extension_settings.speech_recognition.resumeDelay;
         sttProvider.loadSettings(extension_settings.speech_recognition[sttProviderName]);
         $('#microphone_button').show();
     } else {
@@ -404,11 +406,13 @@ async function onMessageMappingEnabledClick() {
 
 async function onResumeChange() {
     extension_settings.speech_recognition.resume = $('#speech_recognition_resume').val();
+    sttProvider.onSettingsChange();
     saveSettingsDebounced();
 }
 
 async function onResumeDelayChange() {
     extension_settings.speech_recognition.resumeDelay = $('#speech_recognition_resume_delay').val();
+    sttProvider.onSettingsChange();
     saveSettingsDebounced();
 }
 
